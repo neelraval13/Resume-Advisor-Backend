@@ -95,3 +95,129 @@ class FetchJDResponse(BaseModel):
     text: str
     metadata: FetchJDMetadata
     warnings: list[FetchWarning] = []
+
+
+# ─── analyze endpoint ──────────────────────────────────────────────────────
+
+
+class Priority(StrEnum):
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+class GapType(StrEnum):
+    PROJECT = "project"
+    COURSE = "course"
+    CERTIFICATION = "certification"
+    COMMUNITY = "community"
+    READING = "reading"
+    OTHER = "other"
+
+
+class Urgency(StrEnum):
+    CRITICAL = "critical"
+    HELPFUL = "helpful"
+    OPTIONAL = "optional"
+
+
+class FitAssessment(BaseModel):
+    score: int = Field(..., ge=0, le=100, description="0-100 honest fit estimate")
+    narrative: str
+
+
+class Strength(BaseModel):
+    strength: str
+    current_location: str
+    jd_match: str
+    action: str
+
+
+class LineEdit(BaseModel):
+    section: str
+    current_text: str
+    suggested_text: str
+    rationale: str
+    priority: Priority
+
+
+class StructuralSuggestion(BaseModel):
+    change: str
+    rationale: str
+
+
+class SkillGapRecommendation(BaseModel):
+    gap: str
+    action: str
+    type: GapType
+    effort_estimate: str
+    urgency: Urgency
+    concrete_starter: str
+
+
+class AnalyzeRequest(BaseModel):
+    resume_text: str = Field(..., min_length=50, description="The candidate's résumé as plain text")
+    jd_text: str = Field(..., min_length=50, description="The job description as plain text")
+
+
+class AnalyzeResponse(BaseModel):
+    """The full structured tailoring advice — mirrors the system prompt's output shape."""
+
+    fit_assessment: FitAssessment
+    strengths_to_emphasize: list[Strength] = []
+    line_edits: list[LineEdit] = []
+    structural_suggestions: list[StructuralSuggestion] = []
+    skill_gap_recommendations: list[SkillGapRecommendation] = []
+    red_flags: list[str] = []
+    full_rewrite_if_requested: str | None = Field(default=None)
+
+
+# ─── analyze SSE events ────────────────────────────────────────────────────
+# Each event sent over the SSE stream has a typed payload. The wire format is
+# `event: <name>\ndata: <json>\n\n`; these models define the `data` shape.
+
+
+class StartEvent(BaseModel):
+    """First event sent — confirms stream opened and which model is running."""
+
+    model: str
+    started_at: str  # ISO 8601 timestamp
+
+
+class TextEvent(BaseModel):
+    """A chunk of raw text from Claude. Frontend uses these for progress UI."""
+
+    chunk: str
+
+
+class ResultEvent(BaseModel):
+    """Successful validation — the full structured AnalyzeResponse."""
+
+    result: AnalyzeResponse
+
+
+class ParseErrorEvent(BaseModel):
+    """Claude finished, but the response could not be parsed/validated.
+
+    `raw_text` is the full concatenated text Claude produced, so the frontend
+    can show the user what happened and offer a retry button.
+    """
+
+    error: str = "malformed_response"
+    message: str
+    raw_text: str
+
+
+class ErrorEvent(BaseModel):
+    """Claude itself errored (timeout, API failure, rate limit)."""
+
+    error: str
+    message: str
+    detail: str | None = None
+
+
+class DoneEvent(BaseModel):
+    """Final event — stream is closing. Always sent, even after errors."""
+
+    completed_at: str
+    duration_ms: int
