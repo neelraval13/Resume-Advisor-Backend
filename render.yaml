@@ -1,0 +1,39 @@
+# Render deployment config (Blueprint).
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Render reads this file to know how to build and run our service.
+# Every change to it requires going to the Render dashboard and clicking "Sync"
+# (or it auto-syncs on push if "Auto-Sync" is enabled in dashboard settings).
+
+services:
+  - type: web
+    name: resume-advisor-api
+    runtime: docker
+    region: singapore # closest Render region to Bengaluru (~50ms latency)
+    plan: free # 512MB RAM, sleeps after 15min idle, 30-50s cold start
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+
+    # Health check — Render hits this URL repeatedly until it returns 200.
+    # If it doesn't pass within ~5 minutes of deploy, the deploy fails.
+    healthCheckPath: /api/health
+
+    # Auto-deploy when commits land on this branch.
+    branch: main
+    autoDeploy: true
+
+    # Environment variables.
+    # `sync: false` means "we'll set this manually in the dashboard, don't
+    # commit the value to Git." Render uses this to keep secrets out of YAML.
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+
+      - key: ANTHROPIC_API_KEY
+        sync: false # set in Render dashboard
+
+      - key: API_KEY
+        sync: false # set in Render dashboard
+
+      - key: CORS_ORIGINS
+        sync: false # set in Render dashboard once frontend exists
