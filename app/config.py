@@ -32,6 +32,13 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-sonnet-4-20250514"
     anthropic_max_tokens: int = 8000
 
+    # ─── api auth ──────────────────────────────────────────────────────────
+    # Shared secret required in the X-API-Key header on protected routes.
+    # In dev, leave unset to disable auth entirely. In prod, set via Fly secret.
+    api_key: str | None = Field(
+        default=None, description="Shared secret for API access; None disables auth"
+    )
+
     # ─── cors ──────────────────────────────────────────────────────────────
     cors_origins: str = "http://localhost:5173"
 

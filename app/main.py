@@ -12,10 +12,11 @@ Visit:
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
+from app.middleware.auth import require_api_key
 from app.routes import analyze, fetch_jd, health, parse
 
 
@@ -57,10 +58,16 @@ def create_app() -> FastAPI:
     )
 
     # routes
+    # Health is intentionally unauthenticated — needed by uptime monitors and frontend bootstrap.
     app.include_router(health.router, prefix="/api", tags=["health"])
-    app.include_router(parse.router, prefix="/api", tags=["parse"])
-    app.include_router(fetch_jd.router, prefix="/api", tags=["fetch-jd"])
-    app.include_router(analyze.router, prefix="/api", tags=["analyze"])
+
+    # All other routes require the X-API-Key header (when configured).
+    protected_deps = [Depends(require_api_key)]
+    app.include_router(parse.router, prefix="/api", tags=["parse"], dependencies=protected_deps)
+    app.include_router(
+        fetch_jd.router, prefix="/api", tags=["fetch-jd"], dependencies=protected_deps
+    )
+    app.include_router(analyze.router, prefix="/api", tags=["analyze"], dependencies=protected_deps)
 
     return app
 
