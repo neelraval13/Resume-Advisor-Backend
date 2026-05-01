@@ -35,6 +35,14 @@ class ParseWarning(StrEnum):
     ENCRYPTED_BUT_READABLE = "encrypted_but_readable"  # PDF was encrypted with empty password
 
 
+class FetchWarning(StrEnum):
+    """Non-fatal issues encountered during URL fetching."""
+
+    LOW_CONTENT = "low_content"  # extracted text suspiciously short
+    NO_TITLE_FOUND = "no_title_found"  # could not detect the page title
+    POSSIBLE_PARTIAL = "possible_partial"  # JS-rendered content may be incomplete
+
+
 class ParseMetadata(BaseModel):
     """Information about what was parsed, separate from the text itself."""
 
@@ -61,3 +69,29 @@ class ErrorDetail(BaseModel):
     detail: str | None = Field(
         default=None, description="Additional context, e.g. parser library error"
     )
+
+
+# ─── fetch-jd endpoint ─────────────────────────────────────────────────────
+
+
+class FetchJDRequest(BaseModel):
+    """Request body for /api/fetch-jd."""
+
+    url: str = Field(..., description="The JD page URL to fetch")
+
+
+class FetchJDMetadata(BaseModel):
+    """Information about a fetched URL."""
+
+    source_url: str = Field(..., description="The URL that was fetched (after redirects)")
+    source_domain: str = Field(..., description="Just the hostname, useful for UI display")
+    title: str | None = Field(default=None, description="Detected page title")
+    char_count: int
+
+
+class FetchJDResponse(BaseModel):
+    """Successful fetch — extracted JD text plus metadata plus any warnings."""
+
+    text: str
+    metadata: FetchJDMetadata
+    warnings: list[FetchWarning] = []
