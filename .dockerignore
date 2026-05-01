@@ -1,0 +1,30 @@
+# Don't copy local development artifacts into the image
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Don't copy secrets
+.env
+.env.local
+.env.*.local
+
+# Don't copy version control
+.git/
+.gitignore
+
+# Don't copy IDE config
+.zed/
+.vscode/
+.idea/
+
+# Don't copy OS junk
+.DS_Store
+Thumbs.db
+
+# Don't copy docs and CI config (not needed at runtime)
+docs/
+README.md
+.github/
