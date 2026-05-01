@@ -38,10 +38,10 @@ def create_app() -> FastAPI:
     settings = get_settings()
 
     app = FastAPI(
-        title="Résumé Advisor API",
+        title="Resume Advisor API",
         description=(
-            "Backend for the Odyssey Therapeia Résumé Advisor — "
-            "analyzes a résumé against a JD and returns structured, "
+            "Backend for the Odyssey Therapeia Resume Advisor — "
+            "analyzes a resume against a JD and returns structured, "
             "honest tailoring suggestions."
         ),
         version=settings.app_version,

@@ -156,7 +156,7 @@ class SkillGapRecommendation(BaseModel):
 
 
 class AnalyzeRequest(BaseModel):
-    resume_text: str = Field(..., min_length=50, description="The candidate's résumé as plain text")
+    resume_text: str = Field(..., min_length=50, description="The candidate's resume as plain text")
     jd_text: str = Field(..., min_length=50, description="The job description as plain text")
 
 

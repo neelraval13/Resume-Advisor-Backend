@@ -1,6 +1,6 @@
-# Résumé Advisor API
+# Resume Advisor API
 
-Backend for the Odyssey Therapeia Résumé Advisor — a tool that analyzes a candidate's résumé against a specific job description and returns honest, structured tailoring advice. **No fabrication, real growth recommendations, LaTeX-friendly line edits.**
+Backend for the Odyssey Therapeia Resume Advisor — a tool that analyzes a candidate's resume against a specific job description and returns honest, structured tailoring advice. **No fabrication, real growth recommendations, LaTeX-friendly line edits.**
 
 Built with FastAPI, Pydantic, Anthropic Claude, and a strong commitment to advisor-over-ghostwriter design.
 
@@ -36,14 +36,14 @@ Four endpoints that compose into one pipeline:
 | POST   | `/api/analyze`   | ✓    | Stream tailoring advice from Claude as SSE events      |
 | GET    | `/docs`          | open | Auto-generated Swagger UI                              |
 
-The typical flow: parse a résumé file → fetch a JD by URL → analyze the two together. Each endpoint is independently useful; the pipeline is just composition.
+The typical flow: parse a resume file → fetch a JD by URL → analyze the two together. Each endpoint is independently useful; the pipeline is just composition.
 
 ### What `/api/analyze` returns
 
 A structured `AnalyzeResponse` with:
 
 - `fit_assessment` — honest 0-100 score with narrative
-- `strengths_to_emphasize` — items already in the résumé to foreground for this JD
+- `strengths_to_emphasize` — items already in the resume to foreground for this JD
 - `line_edits` — verbatim before/after edits (LaTeX-friendly, copy-pasteable)
 - `structural_suggestions` — section reordering, hierarchy changes
 - `skill_gap_recommendations` — projects to build, courses to take, certs to earn, with `concrete_starter` for "this week" actions
@@ -221,7 +221,7 @@ V2 candidates, in rough priority order:
 1. **Frontend** — React + Vite + TypeScript app consuming this API, with the editorial UI from the original artifact
 2. **Cover letter generation** — same inputs, different prompt, ~30 minutes of work given the existing analyzer infrastructure
 3. **Interview prep output** — given the analysis, generate likely interview questions tied to matched strengths and gaps
-4. **Saved base résumé** — paste once, tailor against many JDs without re-uploading
+4. **Saved base resume** — paste once, tailor against many JDs without re-uploading
 5. **Sentry integration** — error tracking for production failures
 6. **Per-IP rate limiting** — guard against API key leakage
 7. **Streaming retry** — single corrective retry on malformed JSON

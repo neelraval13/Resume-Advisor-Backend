@@ -1,7 +1,7 @@
 [project]
 name = "resume-advisor-api"
 version = "0.1.0"
-description = "Backend API for the Odyssey Therapeia Résumé Advisor tool"
+description = "Backend API for the Odyssey Therapeia Resume Advisor tool"
 requires-python = ">=3.11"
 dependencies = [
     # web framework

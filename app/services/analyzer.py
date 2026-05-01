@@ -1,5 +1,5 @@
 """
-Résumé analyzer service.
+Resume analyzer service.
 
 Streams a tailoring analysis from Claude over SSE. The async generator
 `analyze_stream()` yields typed events:
@@ -79,7 +79,7 @@ def _parse_and_validate(raw_text: str) -> AnalyzeResponse:
 
 
 def _build_user_message(resume_text: str, jd_text: str) -> str:
-    return f"ORIGINAL RÉSUMÉ:\n\n{resume_text}\n\n---\n\nJOB DESCRIPTION:\n\n{jd_text}"
+    return f"ORIGINAL RESUME:\n\n{resume_text}\n\n---\n\nJOB DESCRIPTION:\n\n{jd_text}"
 
 
 def _now_iso() -> str:
