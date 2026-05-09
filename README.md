@@ -1,6 +1,8 @@
 # Resume Advisor API
 
-Backend for the Odyssey Therapeia Resume Advisor — a tool that analyzes a candidate's resume against a specific job description and returns honest, structured tailoring advice. **No fabrication, real growth recommendations, LaTeX-friendly line edits.**
+Backend service for resume tailoring tools. Accepts a resume and job description, returns honest structured advice from Claude.
+
+Currently powers [Jogen](https://github.com/neelraval13/Jogen) — a frontend at https://jogen.vercel.app.
 
 Built with FastAPI, Pydantic, Anthropic Claude, and a strong commitment to advisor-over-ghostwriter design.
 
@@ -49,7 +51,7 @@ A structured `AnalyzeResponse` with:
 - `skill_gap_recommendations` — projects to build, courses to take, certs to earn, with `concrete_starter` for "this week" actions
 - `red_flags` — honesty concerns the candidate should know about
 
-The endpoint streams over Server-Sent Events: `start → many text events → result → done`. The frontend gets live progress feedback during Claude's ~10s generation, then a fully validated structured payload at the end.
+The endpoint streams over Server-Sent Events: `start → many text events → result → done`. Consumers get live progress feedback during Claude's ~10s generation, then a fully validated structured payload at the end.
 
 ---
 
@@ -124,19 +126,21 @@ tests/
 
 **Routes are thin, services are testable.** Routes do input validation, error mapping to HTTP status codes, and response serialization. All real logic — parsing, fetching, prompting — lives in `services/` as plain functions, independently testable without spinning up FastAPI.
 
-**Pydantic validation as a contract gate.** Every Claude response goes through `AnalyzeResponse.model_validate()` before reaching the client. If the LLM hallucinates a field name, returns an out-of-range score, or omits a required key, the request fails with a typed `parse_error` event instead of poisoning the frontend with malformed data.
+**Pydantic validation as a contract gate.** Every Claude response goes through `AnalyzeResponse.model_validate()` before reaching the client. If the LLM hallucinates a field name, returns an out-of-range score, or omits a required key, the request fails with a typed `parse_error` event instead of poisoning consumers with malformed data.
 
 **Custom exceptions per domain.** Each service has its own exception hierarchy (`ParserError`, `FetcherError`, `AnalyzerError` with subclasses). Routes catch the base class, map to HTTP via the `code` attribute. Cleaner than tuple returns or generic `ValueError`s.
 
 **Honest LLM prompting.** The system prompt in `app/prompts/advisor.md` is explicit: never fabricate, distinguish "change now" from "do over time," cite verbatim text for find-and-replace, suggest concrete starter actions for skill gaps. This is the philosophical core of the tool.
+
+**Brand-agnostic by design.** This service doesn't know or care which frontend is calling it. The `X-API-Key` is shared per consumer, CORS allows specific origins, but nothing in `app/` references a specific product name. Future tools can consume the same backend without code changes.
 
 ### Key technical decisions
 
 - **`pdfplumber` over `pypdf`** — better layout handling, exposes per-character positions for tight-kerning detection
 - **`x_tolerance=1.5` in PDF extraction** — handles tightly-kerned PDFs (LaTeX, Canva, designer templates) where the default fails silently
 - **`trafilatura` for URL content extraction** — strips nav/ads/cookie banners cleanly, beats hand-rolled BeautifulSoup
-- **SSE streaming over WebSockets** — one-way server-to-client, no protocol complexity, native browser support via `EventSource`
-- **No retry on malformed JSON** — single attempt, surface the failure as `parse_error` event with raw text for the frontend to handle
+- **SSE streaming over WebSockets** — one-way server-to-client, no protocol complexity, native browser support via `EventSource` (or via `fetch` + `ReadableStream` when consumers need POST + custom headers)
+- **No retry on malformed JSON** — single attempt, surface the failure as `parse_error` event with raw text for the consumer to handle
 - **API key as opt-in via `None` default** — auth disabled in dev, enforced in prod, same code path
 
 ---
@@ -177,6 +181,12 @@ To rotate secrets without code changes:
 2. Edit env var, save
 3. Render restarts the service
 
+To allow a new consumer (frontend on a new origin):
+
+1. Render dashboard → Environment → `CORS_ORIGINS`
+2. Add the origin, comma-separated
+3. Save (auto-restart)
+
 ### Building the Docker image locally
 
 ```bash
@@ -202,9 +212,9 @@ The image is multi-stage — a `uv`-based builder produces the venv, then a slim
 
 ## Limitations and known issues
 
-- **Cold starts on free tier.** Render's free plan sleeps after 15 minutes of no traffic. First request after sleep takes 30-50s. For an internal tool used a few times a day, this is acceptable; if it becomes painful, options are: (a) ping `/api/health` every 14 minutes via cron-job.org, or (b) upgrade to Render's paid tier ($7/month for always-on).
+- **Cold starts on free tier.** Render's free plan sleeps after 15 minutes of no traffic. First request after sleep takes 30-50s. For internal tools used a few times a day, this is acceptable; if it becomes painful, options are: (a) ping `/api/health` every 14 minutes via cron-job.org, or (b) upgrade to Render's paid tier ($7/month for always-on).
 
-- **No retry on malformed Claude output.** ~1-3% of analyze calls return JSON that fails Pydantic validation (Claude duplicating keys, missing fields, etc.). User has to resubmit. Trade-off chosen for V1 simplicity; revisit if observed error rate becomes painful.
+- **No retry on malformed Claude output.** ~1-3% of analyze calls return JSON that fails Pydantic validation (Claude duplicating keys, missing fields, etc.). Consumer has to resubmit. Trade-off chosen for V1 simplicity; revisit if observed error rate becomes painful.
 
 - **No OCR for scanned PDFs.** PDFs without text layers (photo-of-a-resume scans) are detected and rejected with a clear message. Adding Tesseract.js or a similar OCR layer would unblock these but adds significant deploy complexity.
 
@@ -218,19 +228,18 @@ The image is multi-stage — a `uv`-based builder produces the venv, then a slim
 
 V2 candidates, in rough priority order:
 
-1. **Frontend** — React + Vite + TypeScript app consuming this API, with the editorial UI from the original artifact
-2. **Cover letter generation** — same inputs, different prompt, ~30 minutes of work given the existing analyzer infrastructure
-3. **Interview prep output** — given the analysis, generate likely interview questions tied to matched strengths and gaps
-4. **Saved base resume** — paste once, tailor against many JDs without re-uploading
-5. **Sentry integration** — error tracking for production failures
-6. **Per-IP rate limiting** — guard against API key leakage
-7. **Streaming retry** — single corrective retry on malformed JSON
-8. **OCR for scanned PDFs** — Tesseract.js integration for image-only resumes
+1. **Cover letter generation endpoint** — same inputs, different prompt, ~30 minutes of work given the existing analyzer infrastructure
+2. **Documentation-only route exposing analyze schemas to OpenAPI** — so consumers can auto-generate types for the streaming response (currently hand-typed in consumer code)
+3. **Interview prep endpoint** — given an analysis, generate likely interview questions tied to matched strengths and gaps
+4. **Sentry integration** — error tracking for production failures
+5. **Per-IP rate limiting** — guard against API key leakage
+6. **Streaming retry** — single corrective retry on malformed JSON
+7. **OCR for scanned PDFs** — Tesseract.js integration for image-only resumes
 
 ---
 
 ## Credits
 
-Built by Neel Raval at Odyssey Therapeia.
+Built by Neel Raval.
 
 Tooling: FastAPI · Pydantic · Anthropic Python SDK · pdfplumber · python-docx · trafilatura · httpx · uv · pytest · respx · Docker · Render
